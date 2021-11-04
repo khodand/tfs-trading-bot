@@ -4,21 +4,21 @@ type Price float64
 
 type TickerSymbol string
 
-// SendOrder https://support.kraken.com/hc/en-us/articles/360022839691-Send-order
-type SendOrder struct {
-	orderType string
-	symbol TickerSymbol
-	side string
-	size int
-	limitPrice Price
-	stopPrice Price // not required
-	triggerSignal string // not required
+// Order https://support.kraken.com/hc/en-us/articles/360022839691-Send-order
+type Order struct {
+	OrderType string
+	Symbol TickerSymbol
+	Side string
+	Size int
+	LimitPrice Price
+	StopPrice Price // not required
+	TriggerSignal string // not required
 }
 
 // Ticker https://support.kraken.com/hc/en-us/articles/360022839751-Ticker-Lite
 type Ticker struct {
 	Feed         string  `json:"feed"`
-	ProductId    string  `json:"product_id"`
+	ProductId    TickerSymbol  `json:"product_id"`
 	Bid          Price  `json:"bid"`
 	Ask          Price 	`json:"ask"`
 	Change       float64 `json:"change"`
