@@ -1,61 +1,168 @@
 package exchanges
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"strconv"
+	"sync"
+	"tfs-trading-bot/pkg/websocket"
 	"time"
 
 	"tfs-trading-bot/internal/domain"
-	"tfs-trading-bot/internal/services/websocket"
 )
 
 const (
-	websocketAddr = "wss://futures.kraken.com/ws/v1"
-	restAddr = "https://futures.kraken.com/derivatives/api/v3"
+	websocketAddr = "wss://demo-futures.kraken.com/ws/v1"
+	restAddr      = "https://demo-futures.kraken.com/derivatives/api/v3"
+	apiPublicKey  = "52Hw5QQCv6O5X+zQFDeVH+9DpHV339mT+NW/EtjN0+krrwcWFFBiWke7"
+	apiSecretKey  = "i465FHjhb0oKMaV4l+FIzZXfb9N3PYose1CP9qrBY8vdlVOC64Q9/M76ANyXml915TrBFzepJZ7Zdc/NelIOwDa7"
 )
 
 type KrakenFuturesExchange struct {
-	socket *websocket.WebSocketClient
-	tickersOut chan domain.Ticker
+	socket *websocket.Client
+	client http.Client
 }
 
-func NewKrakenExchange() *KrakenFuturesExchange{
-	return &KrakenFuturesExchange{
-		socket:     websocket.NewWebSocketClient(websocketAddr, time.Second),
-		tickersOut: nil,
+func NewKrakenExchange() *KrakenFuturesExchange {
+	e := KrakenFuturesExchange{
+		socket: websocket.NewWebSocketClient(websocketAddr, time.Second),
+		client: http.Client{
+			Timeout: time.Second * 5,
+		},
 	}
+	e.socket.Connect()
+	return &e
 }
 
-type Message struct {
+// https://futures.kraken.com/derivatives/api/v3/sendorder?orderType=lmt&symbol=pi_xbtusd&side=buy&size=10000&limitPrice=9400&reduceOnly=true
+
+func (exc *KrakenFuturesExchange) SendOrder(order domain.Order) {
+	v := url.Values{}
+	v.Add("orderType", order.OrderType)
+	v.Add("symbol", string(order.Symbol))
+	v.Add("side", order.Side)
+	v.Add("size", strconv.Itoa(order.Size))
+	v.Add("limitPrice", fmt.Sprintf("%f", order.LimitPrice))
+	queryString := v.Encode()
+	req, err := http.NewRequest(http.MethodPost, restAddr+"/sendorder"+"?"+queryString, nil)
+	if err != nil {
+		panic(err)
+	}
+	//nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
+	//fmt.Println(nonce)
+	signature := encodeAuth(queryString, "", "/api/v3/sendorder")
+
+	req.Header.Add("APIKey", apiPublicKey)
+	//req.Header.Add("Nonce", nonce)
+	req.Header.Add("Authent", signature)
+
+	_, err = httputil.DumpRequestOut(req, true)
+	if err != nil {
+		panic(err)
+	}
+	//fmt.Println(string(b))
+
+	resp, err := exc.client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = httputil.DumpResponse(resp, true)
+	if err != nil {
+		panic(err)
+	}
+	log.Println("SERVER RESPONCE", resp.Body)
+}
+
+type SubscribeMessage struct {
 	Event      string   `json:"event"`
 	Feed       string   `json:"feed"`
 	ProductIds []string `json:"product_ids"`
 }
 
 func (exc *KrakenFuturesExchange) Subscribe(symbol domain.TickerSymbol) {
-	_ = exc.socket.WriteJSON(Message{
+	log.Println("Subscribes to ", symbol)
+	err := exc.socket.WriteJSON(SubscribeMessage{
 		Event:      "subscribe",
 		Feed:       "ticker_lite",
 		ProductIds: []string{string(symbol)},
 	})
+	fmt.Println(err)
 }
 
 func (exc *KrakenFuturesExchange) GetTickersChan() <-chan domain.Ticker {
-	return exc.tickersOut
-}
-
-func (exc *KrakenFuturesExchange) listenSocket() {
+	out := make(chan domain.Ticker)
 	go func() {
+		defer close(out)
 		for msg := range exc.socket.Listen() {
 			var ticker domain.Ticker
 			err := json.Unmarshal(msg, &ticker)
 			if err != nil {
 				continue
 			}
-			exc.tickersOut <- ticker
+			if ticker.Bid == 0 {
+				continue
+			}
+			log.Println(ticker)
+			out <- ticker
 		}
 	}()
+
+	return out
+}
+
+func encodeAuth(postData string, nonce string, endpointPath string) string {
+	data := []byte(postData + nonce + endpointPath)
+	sha := sha256.New()
+	sha.Write(data)
+
+	apiDecode, _ := base64.StdEncoding.DecodeString(apiSecretKey)
+
+	h := hmac.New(sha512.New, apiDecode)
+	h.Write(sha.Sum(nil))
+
+	out := base64.StdEncoding.EncodeToString(h.Sum(nil))
+	//fmt.Println(out)
+	return out
 }
 
 func main() {
+	//encodeAuth("orderType=lmt&symbol=pi_xbtusd&side=buy&size=10000&limitPrice=9400", "", "/api/v3/sendorder")
+	//encodeAuth("", "", "/api/v3/cancelallorders")
+	e := NewKrakenExchange()
 
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for msg := range e.socket.Listen() {
+			var ticker domain.Ticker
+			err := json.Unmarshal(msg, &ticker)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			log.Println(ticker)
+		}
+	}()
+
+	e.Subscribe("pi_xbtusd")
+	//e.SendOrder(domain.Order{
+	//	OrderType:  "ioc",
+	//	Symbol:     "pi_xbtusd",
+	//	Side:       "buy",
+	//	Size:       1,
+	//	LimitPrice: 9400,
+	//})
+
+	wg.Wait()
+	fmt.Println("EnD")
 }

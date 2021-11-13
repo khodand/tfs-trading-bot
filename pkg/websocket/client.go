@@ -3,38 +3,40 @@ package websocket
 import (
 	"fmt"
 	"github.com/gorilla/websocket"
+	"log"
 	"sync"
 	"time"
 )
 
-type WebSocketClient struct {
+type Client struct {
 	connLock sync.RWMutex
 	conn     *websocket.Conn
 	url      string
 	duration time.Duration
 }
 
-func NewWebSocketClient(url string,readDuration time.Duration) *WebSocketClient {
-	return &WebSocketClient{
+func NewWebSocketClient(url string, readDuration time.Duration) *Client {
+	return &Client{
 		url:      url,
 		duration: readDuration,
 	}
 }
 
-func (client *WebSocketClient) Connect() {
+func (client *Client) Connect() {
 	client.connLock.Lock()
 	defer client.connLock.Unlock()
 
 	if client.conn == nil {
 		ws, _, err := websocket.DefaultDialer.Dial(client.url, nil)
 		if err != nil {
+			log.Fatal(err)
 			return
 		}
 		client.conn = ws
 	}
 }
 
-func (client *WebSocketClient) readMessage() (p []byte, err error) {
+func (client *Client) readMessage() (p []byte, err error) {
 	client.connLock.RLock()
 	defer client.connLock.RUnlock()
 
@@ -46,7 +48,9 @@ func (client *WebSocketClient) readMessage() (p []byte, err error) {
 	return safeMessages, nil
 }
 
-func (client *WebSocketClient) Listen() <-chan []byte {
+func (client *Client) Listen() <-chan []byte {
+	client.Connect()
+
 	out := make(chan []byte)
 	go func() {
 		defer close(out)
@@ -56,18 +60,19 @@ func (client *WebSocketClient) Listen() <-chan []byte {
 		for range ticker.C {
 			var err error
 			message, err = client.readMessage()
+			log.Println(string(message))
 			if err != nil {
 				fmt.Println(err.Error())
 				return
 			}
+			out <- message
 		}
-		out <- message
 	}()
 
 	return out
 }
 
-func (client *WebSocketClient) debugListen() {
+func (client *Client) debugListen() {
 	ticker := time.NewTicker(time.Second)
 	for range ticker.C {
 		client.Connect()
@@ -82,16 +87,21 @@ func (client *WebSocketClient) debugListen() {
 	}
 }
 
-func (client *WebSocketClient) Close() {
+func (client *Client) Close() {
 	client.connLock.Lock()
 	defer client.connLock.Unlock()
+	if client.conn == nil {
+		return
+	}
 	err := client.conn.Close()
 	if err != nil {
 		return
 	}
 }
 
-func (client *WebSocketClient) WriteJSON(json interface{}) error {
+func (client *Client) WriteJSON(json interface{}) error {
+	client.Connect()
+
 	client.connLock.RLock()
 	defer client.connLock.RUnlock()
 	return client.conn.WriteJSON(json)
@@ -104,12 +114,13 @@ type Messageasdfas struct {
 }
 
 func main() {
-	wc := NewWebSocketClient("wss://futures.kraken.com/ws/v1", time.Second)
+	wc := NewWebSocketClient("wss://demo-futures.kraken.com/ws/v1", time.Second)
 	wc.Connect()
 	err := wc.WriteJSON(Messageasdfas{
-		Event:      "subscribe",
-		Feed:       "ticker_lite",
-		ProductIds: []string{"PI_XBTUSD"},
+		Event: "subscribe",
+		Feed:  "ticker_lite",
+		//ProductIds: []string{"PI_XBTUSD"},
+		ProductIds: []string{"pi_xbtusd"},
 	})
 	if err != nil {
 		fmt.Println(err)
@@ -117,5 +128,6 @@ func main() {
 	}
 	wc.debugListen()
 
-	for true {}
+	for true {
+	}
 }
