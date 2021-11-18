@@ -114,13 +114,13 @@ type Messageasdfas struct {
 }
 
 func main() {
-	wc := NewWebSocketClient("wss://demo-futures.kraken.com/ws/v1", time.Second)
+	wc := NewWebSocketClient("wss://demo-futures.kraken.com/ws/v1?chart", time.Second)
 	wc.Connect()
 	err := wc.WriteJSON(Messageasdfas{
 		Event: "subscribe",
-		Feed:  "ticker_lite",
+		Feed:  "candles_trade_1m",
 		//ProductIds: []string{"PI_XBTUSD"},
-		ProductIds: []string{"pi_xbtusd"},
+		ProductIds: []string{"IN_ETHUSD"},
 	})
 	if err != nil {
 		fmt.Println(err)

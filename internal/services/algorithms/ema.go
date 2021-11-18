@@ -34,7 +34,7 @@ func (m EMAAlgo) ProcessTickers(tickers <-chan domain.Ticker) <-chan domain.Orde
 			if tmp, ok := tickersAverage[ticker.ProductId]; ok {
 				average = tmp
 				average.period++
-				k := smoothingConstant(average.period)
+				k := smoothingConstant(m.sellPeriod)
 				average.ma = (price * k) + (average.ma * (1 - k))
 			} else {
 				average = tickerMA{
@@ -49,11 +49,10 @@ func (m EMAAlgo) ProcessTickers(tickers <-chan domain.Ticker) <-chan domain.Orde
 				if price > average.ma && average.last < average.ma { // cross high
 					log.Println("EMA BUY")
 					out <- buy(ticker.ProductId, 1, ticker.Ask)
-				} else {
-					if price < average.ma && average.last > average.ma { // cross low
-						log.Println("EMA SELL")
-						out <- sell(ticker.ProductId, 1, ticker.Bid)
-					}
+				}
+				if price < average.ma && average.last > average.ma { // cross low
+					log.Println("EMA SELL")
+					out <- sell(ticker.ProductId, 1, ticker.Bid)
 				}
 			}
 			average.last = price

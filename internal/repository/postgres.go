@@ -22,4 +22,6 @@ func NewRepository(pgxPool *pgxpool.Pool) TradingDatabase {
 
 type TradingDatabase interface {
 	InsertOrder(ctx context.Context, order domain.Order) error
+	OrdersBySide(ctx context.Context, side string) ([]domain.Order, error)
+	DeleteOrdersBySide(ctx context.Context, side string) error
 }

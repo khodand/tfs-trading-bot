@@ -13,10 +13,11 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
-	"tfs-trading-bot/pkg/websocket"
 	"time"
 
 	"tfs-trading-bot/internal/domain"
+	pkghttp "tfs-trading-bot/pkg/http"
+	"tfs-trading-bot/pkg/websocket"
 )
 
 const (
@@ -28,14 +29,14 @@ const (
 
 type KrakenFuturesExchange struct {
 	socket *websocket.Client
-	client http.Client
+	client pkghttp.Client
 }
 
 func NewKrakenExchange() *KrakenFuturesExchange {
 	e := KrakenFuturesExchange{
 		socket: websocket.NewWebSocketClient(websocketAddr, time.Second),
-		client: http.Client{
-			Timeout: time.Second * 5,
+		client: pkghttp.Client{
+			Client: http.Client{Timeout: time.Second * 5},
 		},
 	}
 	e.socket.Connect()
@@ -56,29 +57,13 @@ func (exc *KrakenFuturesExchange) SendOrder(order domain.Order) {
 	if err != nil {
 		panic(err)
 	}
-	//nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
-	//fmt.Println(nonce)
-	signature := encodeAuth(queryString, "", "/api/v3/sendorder")
+
+	signature := encodeAuth(queryString, "/api/v3/sendorder")
 
 	req.Header.Add("APIKey", apiPublicKey)
-	//req.Header.Add("Nonce", nonce)
 	req.Header.Add("Authent", signature)
 
-	_, err = httputil.DumpRequestOut(req, true)
-	if err != nil {
-		panic(err)
-	}
-	//fmt.Println(string(b))
-
-	resp, err := exc.client.Do(req)
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = httputil.DumpResponse(resp, true)
-	if err != nil {
-		panic(err)
-	}
+	resp := exc.client.PostRequest(req)
 	log.Println("SERVER RESPONCE", resp.Body)
 }
 
@@ -119,8 +104,37 @@ func (exc *KrakenFuturesExchange) GetTickersChan() <-chan domain.Ticker {
 	return out
 }
 
-func encodeAuth(postData string, nonce string, endpointPath string) string {
-	data := []byte(postData + nonce + endpointPath)
+func (exc *KrakenFuturesExchange) GetAccounts() {
+	req, err := http.NewRequest(http.MethodGet, restAddr+"/accounts", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	signature := encodeAuth("", "/api/v3/accounts")
+
+	req.Header.Add("APIKey", apiPublicKey)
+	req.Header.Add("Authent", signature)
+
+	_, err = httputil.DumpRequestOut(req, true)
+	if err != nil {
+		panic(err)
+	}
+	//fmt.Println(string(b))
+
+	resp, err := exc.client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = httputil.DumpResponse(resp, true)
+	if err != nil {
+		panic(err)
+	}
+	log.Println("SERVER RESPONCE", resp.Body)
+}
+
+func encodeAuth(postData string, endpointPath string) string {
+	data := []byte(postData + endpointPath)
 	sha := sha256.New()
 	sha.Write(data)
 
@@ -154,14 +168,15 @@ func main() {
 		}
 	}()
 
-	e.Subscribe("pi_xbtusd")
-	//e.SendOrder(domain.Order{
-	//	OrderType:  "ioc",
-	//	Symbol:     "pi_xbtusd",
-	//	Side:       "buy",
-	//	Size:       1,
-	//	LimitPrice: 9400,
-	//})
+	e.Subscribe("pi_ethusd")
+	e.SendOrder(domain.Order{
+		OrderType:  "ioc",
+		Symbol:     "pi_ethusd",
+		Side:       "buy",
+		Size:       1,
+		LimitPrice: 4342,
+	})
+	e.GetAccounts()
 
 	wg.Wait()
 	fmt.Println("EnD")

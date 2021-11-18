@@ -32,6 +32,8 @@ func (s *Server) Router() chi.Router {
 func (s *Server) TradeTicker(w http.ResponseWriter, r *http.Request) {
 	symbol := chi.URLParam(r, "tickerSymbol")
 	s.service.TradeTicker(domain.TickerSymbol(symbol))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("Starting to trade the " + symbol))
 }
 
 func (s *Server) ChangeAlgo(w http.ResponseWriter, r *http.Request) {
