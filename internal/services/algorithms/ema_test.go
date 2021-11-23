@@ -17,6 +17,7 @@ func newTestTicker(test Test) domain.Ticker {
 		ProductId: test.symbol,
 		Bid:       test.price,
 		Ask:       test.price,
+		MarkPrice: test.price,
 	}
 }
 
@@ -48,8 +49,8 @@ func TestProcessTickers(t *testing.T) {
 	}
 
 	expect := []domain.Order{
-		newTestOrder("xbtusd", 91.01, "sell"),
-		newTestOrder("xbtusd", 91.08, "buy"),
+		newTestOrder("xbtusd", 90.919, "sell"),
+		newTestOrder("xbtusd", 91.171, "buy"),
 	}
 
 	ema := NewEMAAlgo(5)

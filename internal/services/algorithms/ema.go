@@ -2,6 +2,7 @@ package algorithms
 
 import (
 	"log"
+	"math"
 	"tfs-trading-bot/internal/domain"
 )
 
@@ -30,7 +31,7 @@ func (m EMAAlgo) ProcessTickers(tickers <-chan domain.Ticker) <-chan domain.Orde
 		for ticker := range tickers {
 			log.Println("ema", ticker)
 			var average tickerMA
-			price := ticker.Bid
+			price := ticker.MarkPrice
 			if tmp, ok := tickersAverage[ticker.ProductId]; ok {
 				average = tmp
 				average.period++
@@ -48,11 +49,11 @@ func (m EMAAlgo) ProcessTickers(tickers <-chan domain.Ticker) <-chan domain.Orde
 			if m.sellPeriod < average.period {
 				if price > average.ma && average.last < average.ma { // cross high
 					log.Println("EMA BUY")
-					out <- buy(ticker.ProductId, 1, ticker.Ask)
+					out <- buy(ticker.ProductId, 1, more(ticker.Ask))
 				}
 				if price < average.ma && average.last > average.ma { // cross low
 					log.Println("EMA SELL")
-					out <- sell(ticker.ProductId, 1, ticker.Bid)
+					out <- sell(ticker.ProductId, 1, less(ticker.Bid))
 				}
 			}
 			average.last = price
@@ -89,4 +90,12 @@ func buy(symbol domain.TickerSymbol, size int, price domain.Price) domain.Order 
 		StopPrice:     0,
 		TriggerSignal: "",
 	}
+}
+
+func more(price domain.Price) domain.Price {
+	return domain.Price(math.Round(float64((price+(price/1000))*1000)) / 1000)
+}
+
+func less(price domain.Price) domain.Price {
+	return domain.Price(math.Round(float64((price-(price/1000))*1000)) / 1000)
 }

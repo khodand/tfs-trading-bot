@@ -10,16 +10,14 @@ import (
 	"tfs-trading-bot/internal/services"
 	"tfs-trading-bot/internal/services/algorithms"
 	"tfs-trading-bot/internal/services/exchanges"
+	"tfs-trading-bot/pkg"
 	pkgpostgres "tfs-trading-bot/pkg/postgres"
 )
 
-const dsn = "postgres://postgres:1234@localhost:5432/postgres" +
-	"?sslmode=disable"
-
-const telegramToken = "2023059929:AAGEN8f835UIb8k4puoBn5n32nACjaRDSxE"
-
 func main() {
-	pool, err := pkgpostgres.NewPool(dsn)
+	config := pkg.ReadConfig("config.json")
+
+	pool, err := pkgpostgres.NewPool(config.Dsn)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -28,12 +26,12 @@ func main() {
 
 	repo := repository.NewRepository(pool)
 	algo := algorithms.NewEMAAlgo(10)
-	// TODO: api tokens as parameters
-	ex := exchanges.NewKrakenExchange()
+	ex := exchanges.NewKrakenExchange(config.KrakenWebsocket, config.KrakenREST, config.KrakenPublicKey,
+		config.KrakenSecretKey)
 
 	trader := services.NewTrader(ex, algo, repo)
 
-	bot := telegram.NewTelegramBot(telegramToken, trader)
+	bot := telegram.NewTelegramBot(config.Telegram, trader)
 	bot.Start()
 
 	handler := rest.NewServer(trader)

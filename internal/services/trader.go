@@ -16,7 +16,7 @@ type TradingService interface {
 type TradingExchange interface {
 	Subscribe(symbol domain.TickerSymbol)
 	GetTickersChan() <-chan domain.Ticker
-	SendOrder(order domain.Order)
+	SendOrder(order domain.Order) error
 }
 
 type TradingAlgorithm interface {
@@ -48,13 +48,13 @@ func (t *Trader) ProcessOrders() <-chan domain.Order {
 		defer close(out)
 		for order := range t.algo.ProcessTickers(t.exchange.GetTickersChan()) {
 			log.Println(order)
-			t.exchange.SendOrder(order)
-			err := t.database.InsertOrder(context.Background(), order)
-			if err != nil {
-				log.Fatal(err)
+			if err := t.exchange.SendOrder(order); err == nil {
+				if err := t.database.InsertOrder(context.Background(), order); err != nil {
+					log.Fatal(err)
+				}
+				log.Println("Inserted to database")
+				out <- order
 			}
-			log.Println("Inserted to database")
-			out <- order
 		}
 	}()
 

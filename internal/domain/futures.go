@@ -25,8 +25,8 @@ func (o Order) String() string {
 		fmt.Sprintf("%f", o.LimitPrice)
 }
 
-// Ticker https://support.kraken.com/hc/en-us/articles/360022839751-Ticker-Lite
-type Ticker struct {
+// TickerLite https://support.kraken.com/hc/en-us/articles/360022839751-Ticker-Lite
+type TickerLite struct {
 	Feed         string       `json:"feed"`
 	ProductId    TickerSymbol `json:"product_id"`
 	Bid          Price        `json:"bid"`
@@ -40,6 +40,11 @@ type Ticker struct {
 	MaturityTime int          `json:"maturityTime"`
 }
 
-func main() {
-
+// Ticker https://support.kraken.com/hc/en-us/articles/360022635992-Ticker
+type Ticker struct {
+	Feed      string       `json:"feed"`
+	ProductId TickerSymbol `json:"product_id"`
+	Bid       Price        `json:"bid"`
+	Ask       Price        `json:"ask"`
+	MarkPrice Price        `json:"markPrice"`
 }
