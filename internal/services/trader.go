@@ -23,26 +23,28 @@ type TradingExchange interface {
 
 type TradingAlgorithm interface {
 	ProcessTickers(tickers <-chan domain.Ticker) <-chan domain.Order
+	ProcessTicker(ticker domain.Ticker) (domain.Order, bool)
 }
 
 type Trader struct {
-	exchange TradingExchange
-	algo     TradingAlgorithm
-	database repository.TradingDatabase
-	log      *logrus.Logger
+	exchange   TradingExchange
+	algo       TradingAlgorithm
+	database   repository.TradingDatabase
+	changeAlgo chan TradingAlgorithm
+	log        *logrus.Logger
 }
 
 func (t *Trader) ChangeAlgo(algo TradingAlgorithm) {
-	// TODO: implement this
-	panic("implement me")
+	t.changeAlgo <- algo
 }
 
 func NewTrader(exc TradingExchange, alg TradingAlgorithm, db repository.TradingDatabase, logger *logrus.Logger) *Trader {
 	return &Trader{
-		exchange: exc,
-		algo:     alg,
-		database: db,
-		log:      logger,
+		exchange:   exc,
+		algo:       alg,
+		database:   db,
+		log:        logger,
+		changeAlgo: make(chan TradingAlgorithm),
 	}
 }
 
@@ -51,7 +53,7 @@ func (t *Trader) ProcessOrders() <-chan domain.Order {
 	go func() {
 		defer close(out)
 		t.log.Info("Trader waits for tickers")
-		for order := range t.algo.ProcessTickers(t.exchange.GetTickersChan()) {
+		for order := range t.tickersToAlgo(t.exchange.GetTickersChan()) {
 			t.log.Debug("Sending order ot exchange:", order)
 			if err := t.exchange.SendOrder(order); err == nil {
 				t.log.Debug("Inserting order to database:", order)
@@ -59,6 +61,26 @@ func (t *Trader) ProcessOrders() <-chan domain.Order {
 					t.log.Fatal(err)
 				}
 				out <- order
+			}
+		}
+	}()
+
+	return out
+}
+
+func (t *Trader) tickersToAlgo(tickers <-chan domain.Ticker) <-chan domain.Order {
+	out := make(chan domain.Order)
+	go func() {
+		defer close(out)
+		t.log.Info("Trader waits for tickers")
+		for {
+			select {
+			case algo := <-t.changeAlgo:
+				t.algo = algo
+			case ticker := <-tickers:
+				if order, skip := t.algo.ProcessTicker(ticker); !skip {
+					out <- order
+				}
 			}
 		}
 	}()
