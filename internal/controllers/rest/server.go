@@ -30,6 +30,7 @@ func (s *Server) Router() chi.Router {
 	root.Use(logger.Logger("router", s.log))
 	root.Post("/trade/{tickerSymbol}", s.TradeTicker)
 	root.Post("/algo/{algorithm}/{period}", s.ChangeAlgo)
+	root.Post("/stop", s.Stop)
 
 	return root
 }
@@ -37,7 +38,6 @@ func (s *Server) Router() chi.Router {
 func (s *Server) TradeTicker(w http.ResponseWriter, r *http.Request) {
 	symbol := chi.URLParam(r, "tickerSymbol")
 	s.service.TradeTicker(domain.TickerSymbol(symbol))
-	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("Starting to trade the " + symbol))
 }
 
@@ -57,6 +57,11 @@ func (s *Server) ChangeAlgo(w http.ResponseWriter, r *http.Request) {
 	}
 	s.service.ChangeAlgo(algo)
 	_, _ = w.Write([]byte("Algorithm successfully changed"))
+}
+
+func (s *Server) Stop(w http.ResponseWriter, r *http.Request) {
+	s.service.Stop()
+	_, _ = w.Write([]byte("Server stopped"))
 }
 
 func writeError(w http.ResponseWriter, msg string) {

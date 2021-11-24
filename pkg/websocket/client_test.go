@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -42,7 +43,7 @@ func TestConnect(t *testing.T) {
 	defer s.Close()
 
 	url := "ws" + strings.TrimPrefix(s.URL, "http")
-	ws := NewWebSocketClient(url, time.Second)
+	ws := NewWebSocketClient(url, time.Second, context.Background())
 	defer ws.Close()
 	ws.Connect()
 

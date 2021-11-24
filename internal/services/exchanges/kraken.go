@@ -1,6 +1,7 @@
 package exchanges
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -10,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"strconv"
 	"time"
@@ -29,11 +29,13 @@ type KrakenFuturesExchange struct {
 	apiPublicKey string
 	apiSecretKey string
 	log          *logrus.Logger
+	cancelFunc   context.CancelFunc
 }
 
 func NewKrakenExchange(websocketAddr, restAddr, apiPublicKey, apiSecretKey string, logger *logrus.Logger) *KrakenFuturesExchange {
+	ctx, cancel := context.WithCancel(context.Background())
 	e := KrakenFuturesExchange{
-		socket: websocket.NewWebSocketClient(websocketAddr, time.Second*10),
+		socket: websocket.NewWebSocketClient(websocketAddr, time.Second*10, ctx),
 		client: pkghttp.Client{
 			Client: http.Client{Timeout: time.Second},
 		},
@@ -41,7 +43,9 @@ func NewKrakenExchange(websocketAddr, restAddr, apiPublicKey, apiSecretKey strin
 		apiPublicKey: apiPublicKey,
 		apiSecretKey: apiSecretKey,
 		log:          logger,
+		cancelFunc:   cancel,
 	}
+
 	e.socket.Connect()
 	return &e
 }
@@ -128,32 +132,8 @@ func (exc *KrakenFuturesExchange) GetTickersChan() <-chan domain.Ticker {
 	return out
 }
 
-func (exc *KrakenFuturesExchange) GetAccounts() {
-	req, err := http.NewRequest(http.MethodGet, exc.restAddr+"/accounts", nil)
-	if err != nil {
-		panic(err)
-	}
-
-	signature := encodeAuth("", "/api/v3/accounts", exc.apiSecretKey)
-
-	req.Header.Add("APIKey", exc.apiPublicKey)
-	req.Header.Add("Authent", signature)
-
-	_, err = httputil.DumpRequestOut(req, true)
-	if err != nil {
-		panic(err)
-	}
-
-	resp, err := exc.client.Do(req)
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = httputil.DumpResponse(resp, true)
-	if err != nil {
-		panic(err)
-	}
-	exc.log.Debug("Kraken server response:", resp.Body)
+func (exc *KrakenFuturesExchange) Stop() {
+	exc.cancelFunc()
 }
 
 func encodeAuth(postData string, endpointPath string, apiSecretKey string) string {

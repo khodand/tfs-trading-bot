@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -13,12 +14,14 @@ type Client struct {
 	conn     *websocket.Conn
 	url      string
 	duration time.Duration
+	ctx      context.Context
 }
 
-func NewWebSocketClient(url string, readDuration time.Duration) *Client {
+func NewWebSocketClient(url string, readDuration time.Duration, ctx context.Context) *Client {
 	return &Client{
 		url:      url,
 		duration: readDuration,
+		ctx:      ctx,
 	}
 }
 
@@ -54,13 +57,18 @@ func (client *Client) Listen() <-chan []byte {
 
 		ticker := time.NewTicker(client.duration)
 		var message []byte
-		for range ticker.C {
-			var err error
-			message, err = client.readMessage()
-			if err != nil {
-				client.Connect()
+		for {
+			select {
+			case <-client.ctx.Done():
+				return
+			case <-ticker.C:
+				var err error
+				message, err = client.readMessage()
+				if err != nil {
+					client.Connect()
+				}
+				out <- message
 			}
-			out <- message
 		}
 	}()
 

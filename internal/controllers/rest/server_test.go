@@ -25,6 +25,8 @@ func (s StubTradingService) ProcessOrders() <-chan domain.Order {
 
 func (s StubTradingService) ChangeAlgo(algo services.TradingAlgorithm) {}
 
+func (s StubTradingService) Stop() {}
+
 func TestTradeTicker(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
