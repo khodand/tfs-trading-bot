@@ -28,9 +28,9 @@ type tickerMA struct {
 	period int
 }
 
-func getTickerMa(tickersAverage *map[domain.TickerSymbol]tickerMA, id domain.TickerSymbol, price domain.Price) tickerMA {
+func getTickerMa(tickersAverage map[domain.TickerSymbol]tickerMA, id domain.TickerSymbol, price domain.Price) tickerMA {
 	var average tickerMA
-	if tmp, ok := (*tickersAverage)[id]; ok {
+	if tmp, ok := tickersAverage[id]; ok {
 		average = tmp
 		average.period++
 	} else {
@@ -39,7 +39,6 @@ func getTickerMa(tickersAverage *map[domain.TickerSymbol]tickerMA, id domain.Tic
 			last:   price,
 			period: 1,
 		}
-		(*tickersAverage)[id] = average
 	}
 	return average
 }
@@ -52,26 +51,21 @@ func (m EMAAlgo) ProcessTickers(tickers <-chan domain.Ticker) <-chan domain.Orde
 		defer close(out)
 		for ticker := range tickers {
 			price := ticker.MarkPrice
-			average := getTickerMa(&tickersAverage, ticker.ProductId, price)
+			average := getTickerMa(tickersAverage, ticker.ProductId, price)
+			tickersAverage[ticker.ProductId] = average
 			if average.last == price {
 				// We want to skip tickers with the same market price to avoid a "sideways" chart
 				continue
 			}
 
 			m.logger.Debugf("EMA: %s last:%f ma:%f price:%f", ticker.ProductId, average.last, average.ma, price)
-			if m.sellPeriod < average.period {
-				if price > average.ma && average.last < average.ma { // cross high
-					out <- buy(ticker.ProductId, 1, more(ticker.Ask))
-				}
-				if price < average.ma && average.last > average.ma { // cross low
-					out <- sell(ticker.ProductId, 1, less(ticker.Bid))
-				}
+			order := generateOrder(m.sellPeriod, average.period, average.last, average.ma, ticker)
+			if (order != domain.Order{}) {
+				out <- order
 			}
 
 			average.last = price
-			k := smoothingConstant(m.sellPeriod)
-			average.ma = (price * k) + (average.ma * (1 - k))
-
+			average.ma = emaFormula(price, average.ma, m.sellPeriod)
 			tickersAverage[ticker.ProductId] = average
 		}
 	}()
@@ -81,31 +75,42 @@ func (m EMAAlgo) ProcessTickers(tickers <-chan domain.Ticker) <-chan domain.Orde
 
 func (m EMAAlgo) ProcessTicker(ticker domain.Ticker) (domain.Order, bool) {
 	price := ticker.MarkPrice
-	average := getTickerMa(&m.tickersAverage, ticker.ProductId, price)
+	average := getTickerMa(m.tickersAverage, ticker.ProductId, price)
+	m.tickersAverage[ticker.ProductId] = average
 	if average.last == price {
+		// We want to skip tickers with the same market price to avoid a "sideways" chart
 		return domain.Order{}, true
 	}
 
 	m.logger.Debugf("EMA: %s last:%f ma:%f price:%f", ticker.ProductId, average.last, average.ma, price)
-	if m.sellPeriod < average.period {
-		if price > average.ma && average.last < average.ma { // cross high
-			return buy(ticker.ProductId, 1, more(ticker.Ask)), false
-		}
-		if price < average.ma && average.last > average.ma { // cross low
-			return sell(ticker.ProductId, 1, less(ticker.Bid)), false
-		}
-	}
+	order := generateOrder(m.sellPeriod, average.period, average.last, average.ma, ticker)
 
 	average.last = price
-	k := smoothingConstant(m.sellPeriod)
-	average.ma = (price * k) + (average.ma * (1 - k))
+	average.ma = emaFormula(price, average.ma, m.sellPeriod)
 	m.tickersAverage[ticker.ProductId] = average
 
-	return domain.Order{}, true
+	return order, order == domain.Order{}
+}
+
+func generateOrder(sellPeriod int, period int, last domain.Price, ma domain.Price, ticker domain.Ticker) domain.Order {
+	if sellPeriod < period {
+		if ticker.MarkPrice > ma && last < ma { // cross high
+			return buy(ticker.ProductId, 1, more(ticker.Ask))
+		}
+		if ticker.MarkPrice < ma && last > ma { // cross low
+			return sell(ticker.ProductId, 1, less(ticker.Bid))
+		}
+	}
+	return domain.Order{}
 }
 
 func smoothingConstant(period int) domain.Price {
 	return domain.Price(2.0 / (1 + float64(period)))
+}
+
+func emaFormula(price domain.Price, ma domain.Price, sellPeriod int) domain.Price {
+	k := smoothingConstant(sellPeriod)
+	return (price * k) + (ma * (1 - k))
 }
 
 func sell(symbol domain.TickerSymbol, size int, price domain.Price) domain.Order {

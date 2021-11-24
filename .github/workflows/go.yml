@@ -1,4 +1,4 @@
-name: runTestsAndLinters
+name: Tests And Linters
 on: [push, pull_request]
 
 jobs:
