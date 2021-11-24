@@ -1,11 +1,13 @@
 package rest
 
 import (
+	"net/http"
+	"strconv"
+
 	"github.com/chi-middleware/logrus-logger"
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
-	"net/http"
-	"strconv"
+
 	"tfs-trading-bot/internal/domain"
 	"tfs-trading-bot/internal/services"
 	"tfs-trading-bot/internal/services/algorithms"
@@ -13,13 +15,13 @@ import (
 
 type Server struct {
 	service services.TradingService
-	log *logrus.Logger
+	log     *logrus.Logger
 }
 
 func NewServer(trader services.TradingService, log *logrus.Logger) *Server {
 	return &Server{
 		service: trader,
-		log: log,
+		log:     log,
 	}
 }
 

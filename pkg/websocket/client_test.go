@@ -1,13 +1,14 @@
 package websocket
 
 import (
-	"github.com/gorilla/websocket"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 )
 
 var upgrader = websocket.Upgrader{}

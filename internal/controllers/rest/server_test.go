@@ -7,10 +7,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+
 	"tfs-trading-bot/internal/domain"
 	"tfs-trading-bot/internal/services"
-
-	"github.com/stretchr/testify/assert"
 )
 
 type StubTradingService struct {
@@ -25,7 +26,9 @@ func (s StubTradingService) ProcessOrders() <-chan domain.Order {
 func (s StubTradingService) ChangeAlgo(algo services.TradingAlgorithm) {}
 
 func TestTradeTicker(t *testing.T) {
-	server := NewServer(StubTradingService{})
+	log := logrus.New()
+	log.SetLevel(logrus.DebugLevel)
+	server := NewServer(StubTradingService{}, log)
 	s := httptest.NewServer(server.Router())
 
 	test := "PI_test"
@@ -42,7 +45,9 @@ type ChangeAlgoTest struct {
 }
 
 func TestChangeAlgo(t *testing.T) {
-	server := NewServer(StubTradingService{})
+	log := logrus.New()
+	log.SetLevel(logrus.DebugLevel)
+	server := NewServer(StubTradingService{}, log)
 	s := httptest.NewServer(server.Router())
 	tests := []ChangeAlgoTest{
 		{"EMA", "100", http.StatusOK},

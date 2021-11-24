@@ -2,6 +2,9 @@ package main
 
 import (
 	"net/http"
+
+	"github.com/sirupsen/logrus"
+
 	"tfs-trading-bot/internal/controllers/rest"
 	"tfs-trading-bot/internal/controllers/telegram"
 	"tfs-trading-bot/internal/repository"
@@ -10,8 +13,6 @@ import (
 	"tfs-trading-bot/internal/services/exchanges"
 	"tfs-trading-bot/pkg"
 	pkgpostgres "tfs-trading-bot/pkg/postgres"
-
-	"github.com/sirupsen/logrus"
 )
 
 func main() {

@@ -1,20 +1,22 @@
 package algorithms
 
 import (
-	"github.com/sirupsen/logrus"
 	"math"
+
+	"github.com/sirupsen/logrus"
+
 	"tfs-trading-bot/internal/domain"
 )
 
 type EMAAlgo struct {
 	sellPeriod int
-	logger *logrus.Logger
+	logger     *logrus.Logger
 }
 
 func NewEMAAlgo(sellPeriod int, logger *logrus.Logger) EMAAlgo {
 	return EMAAlgo{
 		sellPeriod: sellPeriod,
-		logger: logger,
+		logger:     logger,
 	}
 }
 
@@ -104,9 +106,9 @@ func buy(symbol domain.TickerSymbol, size int, price domain.Price) domain.Order 
 }
 
 func more(price domain.Price) domain.Price {
-	return domain.Price(math.Round(float64(price+(price/1000))))
+	return domain.Price(math.Round(float64(price + (price / 1000))))
 }
 
 func less(price domain.Price) domain.Price {
-	return domain.Price(math.Round(float64(price-(price/1000))))
+	return domain.Price(math.Round(float64(price - (price / 1000))))
 }

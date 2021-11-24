@@ -8,13 +8,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"tfs-trading-bot/internal/domain"
 	pkghttp "tfs-trading-bot/pkg/http"
@@ -27,19 +28,19 @@ type KrakenFuturesExchange struct {
 	restAddr     string
 	apiPublicKey string
 	apiSecretKey string
-	log *logrus.Logger
+	log          *logrus.Logger
 }
 
 func NewKrakenExchange(websocketAddr, restAddr, apiPublicKey, apiSecretKey string, logger *logrus.Logger) *KrakenFuturesExchange {
 	e := KrakenFuturesExchange{
-		socket: websocket.NewWebSocketClient(websocketAddr, time.Second * 10),
+		socket: websocket.NewWebSocketClient(websocketAddr, time.Second*10),
 		client: pkghttp.Client{
 			Client: http.Client{Timeout: time.Second},
 		},
 		restAddr:     restAddr,
 		apiPublicKey: apiPublicKey,
 		apiSecretKey: apiSecretKey,
-		log: logger,
+		log:          logger,
 	}
 	e.socket.Connect()
 	return &e
@@ -142,7 +143,6 @@ func (exc *KrakenFuturesExchange) GetAccounts() {
 	if err != nil {
 		panic(err)
 	}
-	//fmt.Println(string(b))
 
 	resp, err := exc.client.Do(req)
 	if err != nil {
@@ -167,42 +167,5 @@ func encodeAuth(postData string, endpointPath string, apiSecretKey string) strin
 	h.Write(sha.Sum(nil))
 
 	out := base64.StdEncoding.EncodeToString(h.Sum(nil))
-	//fmt.Println(out)
 	return out
 }
-
-//func main() {
-//	//encodeAuth("orderType=lmt&symbol=pi_xbtusd&side=buy&size=10000&limitPrice=9400", "", "/api/v3/sendorder")
-//	//encodeAuth("", "", "/api/v3/cancelallorders")
-//	config, _ := pkg.ReadConfig("config.json")
-//	e := NewKrakenExchange(config.KrakenWebsocket, config.KrakenREST, config.KrakenPublicKey, config.KrakenSecretKey)
-//
-//	wg := sync.WaitGroup{}
-//	wg.Add(1)
-//	go func() {
-//		defer wg.Done()
-//		for msg := range e.socket.Listen() {
-//			var ticker domain.Ticker
-//			err := json.Unmarshal(msg, &ticker)
-//			if err != nil {
-//				log.Println(err)
-//				continue
-//			}
-//			log.Println(ticker)
-//		}
-//	}()
-//
-//	e.Subscribe("pi_ethusd")
-//	//err := e.SendOrder(domain.Order{
-//	//	OrderType:  "ioc",
-//	//	Symbol:     "pi_ethusd",
-//	//	Side:       "buy",
-//	//	Size:       1,
-//	//	LimitPrice: 4400,
-//	//})
-//	//log.Println("SEDN" ,err)
-//	//e.GetAccounts()
-//
-//	wg.Wait()
-//	fmt.Println("EnD")
-//}
