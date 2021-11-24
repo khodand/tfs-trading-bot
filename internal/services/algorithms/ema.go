@@ -1,18 +1,20 @@
 package algorithms
 
 import (
-	"log"
+	"github.com/sirupsen/logrus"
 	"math"
 	"tfs-trading-bot/internal/domain"
 )
 
 type EMAAlgo struct {
 	sellPeriod int
+	logger *logrus.Logger
 }
 
-func NewEMAAlgo(sellPeriod int) EMAAlgo {
+func NewEMAAlgo(sellPeriod int, logger *logrus.Logger) EMAAlgo {
 	return EMAAlgo{
 		sellPeriod: sellPeriod,
+		logger: logger,
 	}
 }
 
@@ -22,6 +24,22 @@ type tickerMA struct {
 	period int
 }
 
+func getTickerMa(tickersAverage map[domain.TickerSymbol]tickerMA, id domain.TickerSymbol, price domain.Price) tickerMA {
+	var average tickerMA
+	if tmp, ok := tickersAverage[id]; ok {
+		average = tmp
+		average.period++
+	} else {
+		average = tickerMA{
+			ma:     price,
+			last:   price,
+			period: 1,
+		}
+		tickersAverage[id] = average
+	}
+	return average
+}
+
 func (m EMAAlgo) ProcessTickers(tickers <-chan domain.Ticker) <-chan domain.Order {
 	tickersAverage := make(map[domain.TickerSymbol]tickerMA)
 	out := make(chan domain.Order)
@@ -29,34 +47,27 @@ func (m EMAAlgo) ProcessTickers(tickers <-chan domain.Ticker) <-chan domain.Orde
 	go func() {
 		defer close(out)
 		for ticker := range tickers {
-			log.Println("ema", ticker)
-			var average tickerMA
 			price := ticker.MarkPrice
-			if tmp, ok := tickersAverage[ticker.ProductId]; ok {
-				average = tmp
-				average.period++
-				k := smoothingConstant(m.sellPeriod)
-				average.ma = (price * k) + (average.ma * (1 - k))
-			} else {
-				average = tickerMA{
-					ma:     price,
-					last:   price,
-					period: 1,
-				}
+			average := getTickerMa(tickersAverage, ticker.ProductId, price)
+			if average.last == price {
+				// We want to skip tickers with the same market price to avoid a "sideways" chart
+				continue
 			}
-			log.Println("EMA:", average.last, average.ma, price)
 
+			m.logger.Debugf("EMA: %s last:%f ma:%f price:%f", ticker.ProductId, average.last, average.ma, price)
 			if m.sellPeriod < average.period {
 				if price > average.ma && average.last < average.ma { // cross high
-					log.Println("EMA BUY")
 					out <- buy(ticker.ProductId, 1, more(ticker.Ask))
 				}
 				if price < average.ma && average.last > average.ma { // cross low
-					log.Println("EMA SELL")
 					out <- sell(ticker.ProductId, 1, less(ticker.Bid))
 				}
 			}
+
 			average.last = price
+			k := smoothingConstant(m.sellPeriod)
+			average.ma = (price * k) + (average.ma * (1 - k))
+
 			tickersAverage[ticker.ProductId] = average
 		}
 	}()
@@ -93,9 +104,9 @@ func buy(symbol domain.TickerSymbol, size int, price domain.Price) domain.Order 
 }
 
 func more(price domain.Price) domain.Price {
-	return domain.Price(math.Round(float64((price+(price/1000))*1000)) / 1000)
+	return domain.Price(math.Round(float64(price+(price/1000))))
 }
 
 func less(price domain.Price) domain.Price {
-	return domain.Price(math.Round(float64((price-(price/1000))*1000)) / 1000)
+	return domain.Price(math.Round(float64(price-(price/1000))))
 }

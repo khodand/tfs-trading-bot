@@ -1,8 +1,9 @@
 package rest
 
 import (
+	"github.com/chi-middleware/logrus-logger"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
 	"tfs-trading-bot/internal/domain"
@@ -12,17 +13,19 @@ import (
 
 type Server struct {
 	service services.TradingService
+	log *logrus.Logger
 }
 
-func NewServer(trader services.TradingService) *Server {
+func NewServer(trader services.TradingService, log *logrus.Logger) *Server {
 	return &Server{
 		service: trader,
+		log: log,
 	}
 }
 
 func (s *Server) Router() chi.Router {
 	root := chi.NewRouter()
-	root.Use(middleware.Logger)
+	root.Use(logger.Logger("router", s.log))
 	root.Post("/trade/{tickerSymbol}", s.TradeTicker)
 	root.Post("/algo/{algorithm}/{period}", s.ChangeAlgo)
 
@@ -46,7 +49,7 @@ func (s *Server) ChangeAlgo(w http.ResponseWriter, r *http.Request) {
 	var algo services.TradingAlgorithm
 	switch algoName {
 	case "EMA":
-		algo = algorithms.NewEMAAlgo(atoi)
+		algo = algorithms.NewEMAAlgo(atoi, s.log)
 	default:
 		writeError(w, "No such algo.")
 	}

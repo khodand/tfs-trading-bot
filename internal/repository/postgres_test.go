@@ -3,18 +3,22 @@ package repository
 import (
 	"context"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"tfs-trading-bot/internal/domain"
+	"tfs-trading-bot/pkg"
 
 	pkgpostgres "tfs-trading-bot/pkg/postgres"
 )
 
-const dsn = "postgres://postgres:1234@localhost:5432/postgres" +
-	"?sslmode=disable"
-
 func TestOrderQueries(t *testing.T) {
-	pool, err := pkgpostgres.NewPool(dsn)
+	config, err := pkg.ReadConfig("../../config.json")
+	if err != nil {
+		t.Skip("Skipping test. No config file.")
+		return
+	}
+	pool, err := pkgpostgres.NewPool(config.Dsn, logrus.New())
 	if err != nil {
 		t.Skip("Skipping test. No connection to database.")
 		return

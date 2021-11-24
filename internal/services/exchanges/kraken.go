@@ -8,14 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strconv"
-	"sync"
-	"tfs-trading-bot/pkg"
 	"time"
 
 	"tfs-trading-bot/internal/domain"
@@ -29,17 +27,19 @@ type KrakenFuturesExchange struct {
 	restAddr     string
 	apiPublicKey string
 	apiSecretKey string
+	log *logrus.Logger
 }
 
-func NewKrakenExchange(websocketAddr, restAddr, apiPublicKey, apiSecretKey string) *KrakenFuturesExchange {
+func NewKrakenExchange(websocketAddr, restAddr, apiPublicKey, apiSecretKey string, logger *logrus.Logger) *KrakenFuturesExchange {
 	e := KrakenFuturesExchange{
-		socket: websocket.NewWebSocketClient(websocketAddr, time.Second),
+		socket: websocket.NewWebSocketClient(websocketAddr, time.Second * 10),
 		client: pkghttp.Client{
-			Client: http.Client{Timeout: time.Second * 5},
+			Client: http.Client{Timeout: time.Second},
 		},
 		restAddr:     restAddr,
 		apiPublicKey: apiPublicKey,
 		apiSecretKey: apiSecretKey,
+		log: logger,
 	}
 	e.socket.Connect()
 	return &e
@@ -80,8 +80,7 @@ func (exc *KrakenFuturesExchange) SendOrder(order domain.Order) error {
 	if err != nil {
 		return err
 	}
-	log.Println("SERVER RESPONSE", string(res))
-	log.Println("SERVER RESPONSE", jsonResponse)
+	exc.log.Debug("Kraken server response:", string(res))
 	if jsonResponse.SendStatus.Status != "placed" {
 		return errors.New("THE ORDER WAS NOT PLACED")
 	}
@@ -95,21 +94,24 @@ type SubscribeMessage struct {
 }
 
 func (exc *KrakenFuturesExchange) Subscribe(symbol domain.TickerSymbol) {
-	log.Println("Subscribes to ", symbol)
+	exc.log.Debug("Subscribes to ", symbol)
 	err := exc.socket.WriteJSON(SubscribeMessage{
 		Event:      "subscribe",
 		Feed:       "ticker",
 		ProductIds: []string{string(symbol)},
 	})
-	fmt.Println(err)
+	if err != nil {
+		exc.log.Error(err)
+	}
 }
 
 func (exc *KrakenFuturesExchange) GetTickersChan() <-chan domain.Ticker {
 	out := make(chan domain.Ticker)
 	go func() {
 		defer close(out)
+		exc.log.Info("Kraken waits for tickers")
 		for msg := range exc.socket.Listen() {
-			log.Println(string(msg))
+			exc.log.Trace(string(msg))
 			var ticker domain.Ticker
 			err := json.Unmarshal(msg, &ticker)
 			if err != nil {
@@ -151,7 +153,7 @@ func (exc *KrakenFuturesExchange) GetAccounts() {
 	if err != nil {
 		panic(err)
 	}
-	log.Println("SERVER RESPONSE", resp.Body)
+	exc.log.Debug("Kraken server response:", resp.Body)
 }
 
 func encodeAuth(postData string, endpointPath string, apiSecretKey string) string {
@@ -169,38 +171,38 @@ func encodeAuth(postData string, endpointPath string, apiSecretKey string) strin
 	return out
 }
 
-func main() {
-	//encodeAuth("orderType=lmt&symbol=pi_xbtusd&side=buy&size=10000&limitPrice=9400", "", "/api/v3/sendorder")
-	//encodeAuth("", "", "/api/v3/cancelallorders")
-	config := pkg.ReadConfig("config.json")
-	e := NewKrakenExchange(config.KrakenWebsocket, config.KrakenREST, config.KrakenPublicKey, config.KrakenSecretKey)
-
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for msg := range e.socket.Listen() {
-			var ticker domain.Ticker
-			err := json.Unmarshal(msg, &ticker)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			log.Println(ticker)
-		}
-	}()
-
-	e.Subscribe("pi_ethusd")
-	//err := e.SendOrder(domain.Order{
-	//	OrderType:  "ioc",
-	//	Symbol:     "pi_ethusd",
-	//	Side:       "buy",
-	//	Size:       1,
-	//	LimitPrice: 4400,
-	//})
-	//log.Println("SEDN" ,err)
-	//e.GetAccounts()
-
-	wg.Wait()
-	fmt.Println("EnD")
-}
+//func main() {
+//	//encodeAuth("orderType=lmt&symbol=pi_xbtusd&side=buy&size=10000&limitPrice=9400", "", "/api/v3/sendorder")
+//	//encodeAuth("", "", "/api/v3/cancelallorders")
+//	config, _ := pkg.ReadConfig("config.json")
+//	e := NewKrakenExchange(config.KrakenWebsocket, config.KrakenREST, config.KrakenPublicKey, config.KrakenSecretKey)
+//
+//	wg := sync.WaitGroup{}
+//	wg.Add(1)
+//	go func() {
+//		defer wg.Done()
+//		for msg := range e.socket.Listen() {
+//			var ticker domain.Ticker
+//			err := json.Unmarshal(msg, &ticker)
+//			if err != nil {
+//				log.Println(err)
+//				continue
+//			}
+//			log.Println(ticker)
+//		}
+//	}()
+//
+//	e.Subscribe("pi_ethusd")
+//	//err := e.SendOrder(domain.Order{
+//	//	OrderType:  "ioc",
+//	//	Symbol:     "pi_ethusd",
+//	//	Side:       "buy",
+//	//	Size:       1,
+//	//	LimitPrice: 4400,
+//	//})
+//	//log.Println("SEDN" ,err)
+//	//e.GetAccounts()
+//
+//	wg.Wait()
+//	fmt.Println("EnD")
+//}

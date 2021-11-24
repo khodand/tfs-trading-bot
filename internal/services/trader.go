@@ -2,7 +2,7 @@ package services
 
 import (
 	"context"
-	"log"
+	"github.com/sirupsen/logrus"
 	"tfs-trading-bot/internal/domain"
 	"tfs-trading-bot/internal/repository"
 )
@@ -27,6 +27,7 @@ type Trader struct {
 	exchange TradingExchange
 	algo     TradingAlgorithm
 	database repository.TradingDatabase
+	log *logrus.Logger
 }
 
 func (t *Trader) ChangeAlgo(algo TradingAlgorithm) {
@@ -34,11 +35,12 @@ func (t *Trader) ChangeAlgo(algo TradingAlgorithm) {
 	panic("implement me")
 }
 
-func NewTrader(exch TradingExchange, alg TradingAlgorithm, db repository.TradingDatabase) *Trader {
+func NewTrader(exch TradingExchange, alg TradingAlgorithm, db repository.TradingDatabase, logger *logrus.Logger) *Trader {
 	return &Trader{
 		exchange: exch,
 		algo:     alg,
 		database: db,
+		log: logger,
 	}
 }
 
@@ -46,13 +48,14 @@ func (t *Trader) ProcessOrders() <-chan domain.Order {
 	out := make(chan domain.Order)
 	go func() {
 		defer close(out)
+		t.log.Info("Trader waits for tickers")
 		for order := range t.algo.ProcessTickers(t.exchange.GetTickersChan()) {
-			log.Println(order)
+			t.log.Debug("Sending order ot exchange:", order)
 			if err := t.exchange.SendOrder(order); err == nil {
+				t.log.Debug("Inserting order to database:", order)
 				if err := t.database.InsertOrder(context.Background(), order); err != nil {
-					log.Fatal(err)
+					t.log.Fatal(err)
 				}
-				log.Println("Inserted to database")
 				out <- order
 			}
 		}

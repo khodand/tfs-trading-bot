@@ -1,6 +1,7 @@
 package algorithms
 
 import (
+	"github.com/sirupsen/logrus"
 	"testing"
 	"tfs-trading-bot/internal/domain"
 
@@ -46,14 +47,20 @@ func TestProcessTickers(t *testing.T) {
 		{90.97, "xbtusd"},
 		{91.08, "xbtusd"},
 		{91.13, "xbtusd"},
+		{98.14, "xbtusd"},
+		{93.02, "xbtusd"},
+		{91.13, "xbtusd"},
+		{91.03, "xbtusd"},
 	}
 
 	expect := []domain.Order{
-		newTestOrder("xbtusd", 90.919, "sell"),
-		newTestOrder("xbtusd", 91.171, "buy"),
+		newTestOrder("xbtusd", 91, "buy"),
+		newTestOrder("xbtusd", 93, "sell"),
 	}
 
-	ema := NewEMAAlgo(5)
+	log := logrus.New()
+	log.SetLevel(logrus.TraceLevel)
+	ema := NewEMAAlgo(5, log)
 
 	in := make(chan domain.Ticker)
 

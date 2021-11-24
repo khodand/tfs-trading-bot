@@ -1,9 +1,11 @@
 package websocket
 
 import (
+	"errors"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -27,19 +29,16 @@ func (client *Client) Connect() {
 	defer client.connLock.Unlock()
 
 	if client.conn == nil {
-		ws, _, err := websocket.DefaultDialer.Dial(client.url, nil)
-		if err != nil {
-			log.Fatal(err)
-			return
+		var err = errors.New("")
+		var ws *websocket.Conn
+		for err != nil {
+			ws, _, err = websocket.DefaultDialer.Dial(client.url, nil)
 		}
 		client.conn = ws
 	}
 }
 
 func (client *Client) readMessage() (p []byte, err error) {
-	client.connLock.RLock()
-	defer client.connLock.RUnlock()
-
 	_, messages, err := client.conn.ReadMessage()
 	if err != nil {
 		return nil, err
@@ -60,10 +59,8 @@ func (client *Client) Listen() <-chan []byte {
 		for range ticker.C {
 			var err error
 			message, err = client.readMessage()
-			log.Println(string(message))
 			if err != nil {
-				fmt.Println(err.Error())
-				return
+				client.Connect()
 			}
 			out <- message
 		}
@@ -82,7 +79,7 @@ func (client *Client) debugListen() {
 				client.Close()
 				break
 			}
-			fmt.Println(string(byteMsg))
+			log.Println(string(byteMsg))
 		}
 	}
 }
@@ -102,8 +99,6 @@ func (client *Client) Close() {
 func (client *Client) WriteJSON(json interface{}) error {
 	client.Connect()
 
-	client.connLock.RLock()
-	defer client.connLock.RUnlock()
 	return client.conn.WriteJSON(json)
 }
 
@@ -116,18 +111,22 @@ type Messageasdfas struct {
 func main() {
 	wc := NewWebSocketClient("wss://demo-futures.kraken.com/ws/v1?chart", time.Second)
 	wc.Connect()
-	err := wc.WriteJSON(Messageasdfas{
-		Event: "subscribe",
-		Feed:  "candles_trade_1m",
-		//ProductIds: []string{"PI_XBTUSD"},
-		ProductIds: []string{"IN_ETHUSD"},
-	})
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	wc.debugListen()
+	go func() {
+		time.Sleep(time.Second * 10)
+		err := wc.WriteJSON(Messageasdfas{
+			Event: "subscribe",
+			Feed:  "ticker",
+			ProductIds: []string{"PI_ETHUSD"},
+		})
+		log.Println("Write")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}()
+	go wc.debugListen()
 
 	for true {
+		runtime.Gosched()
 	}
 }

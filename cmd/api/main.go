@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 	"tfs-trading-bot/internal/controllers/rest"
 	"tfs-trading-bot/internal/controllers/telegram"
@@ -12,28 +10,37 @@ import (
 	"tfs-trading-bot/internal/services/exchanges"
 	"tfs-trading-bot/pkg"
 	pkgpostgres "tfs-trading-bot/pkg/postgres"
+
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
-	config := pkg.ReadConfig("config.json")
+	var log = logrus.New()
+	log.SetLevel(logrus.TraceLevel)
 
-	pool, err := pkgpostgres.NewPool(config.Dsn)
+	config, err := pkg.ReadConfig("config.json")
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal("Impossible to read the config:", err)
+	}
+
+	pool, err := pkgpostgres.NewPool(config.Dsn, log)
+	if err != nil {
+		log.Fatal("Impossible to connect to the database:", err)
 		return
 	}
 	defer pool.Close()
 
 	repo := repository.NewRepository(pool)
-	algo := algorithms.NewEMAAlgo(10)
+	algo := algorithms.NewEMAAlgo(config.AlgoSellPeriod, log)
 	ex := exchanges.NewKrakenExchange(config.KrakenWebsocket, config.KrakenREST, config.KrakenPublicKey,
-		config.KrakenSecretKey)
+		config.KrakenSecretKey, log)
 
-	trader := services.NewTrader(ex, algo, repo)
+	trader := services.NewTrader(ex, algo, repo, log)
 
-	bot := telegram.NewTelegramBot(config.Telegram, trader)
+	bot := telegram.NewTelegramBot(config.Telegram, trader, log)
 	bot.Start()
 
-	handler := rest.NewServer(trader)
+	handler := rest.NewServer(trader, log)
+	log.Info("Start listen")
 	log.Fatal(http.ListenAndServe(":5000", handler.Router()))
 }
