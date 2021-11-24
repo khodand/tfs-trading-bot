@@ -56,6 +56,7 @@ func (s *Server) ChangeAlgo(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "No such algo.")
 	}
 	s.service.ChangeAlgo(algo)
+	_, _ = w.Write([]byte("Algorithm successfully changed"))
 }
 
 func writeError(w http.ResponseWriter, msg string) {
