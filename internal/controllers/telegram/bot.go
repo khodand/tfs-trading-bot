@@ -34,6 +34,7 @@ func NewTelegramBot(token string, trader services.TradingService, logger *logrus
 
 func (t *Bot) sendOrders(chatID int64, orders <-chan domain.Order) {
 	go func() {
+		defer t.log.Info("Trader stopped")
 		t.log.Info("Telegram bot waits for orders")
 		for order := range orders {
 			msg := tgbotapi.NewMessage(chatID, order.String())
@@ -43,8 +44,6 @@ func (t *Bot) sendOrders(chatID int64, orders <-chan domain.Order) {
 }
 
 func (t *Bot) Start() {
-	t.bot.Debug = t.log.IsLevelEnabled(logrus.TraceLevel)
-
 	t.log.Infof("Authorized on account %s", t.bot.Self.UserName)
 
 	u := tgbotapi.NewUpdate(0)
