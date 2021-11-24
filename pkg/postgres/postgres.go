@@ -2,10 +2,10 @@ package postgres
 
 import (
 	"context"
-	"github.com/jackc/pgx/v4"
-	"github.com/sirupsen/logrus"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/sirupsen/logrus"
 )
 
 func NewPool(dsn string, logger logrus.FieldLogger) (*pgxpool.Pool, error) {

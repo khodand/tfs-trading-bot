@@ -2,12 +2,10 @@ package websocket
 
 import (
 	"errors"
-	"fmt"
-	"github.com/gorilla/websocket"
-	"log"
-	"runtime"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 type Client struct {
@@ -69,21 +67,6 @@ func (client *Client) Listen() <-chan []byte {
 	return out
 }
 
-func (client *Client) debugListen() {
-	ticker := time.NewTicker(time.Second)
-	for range ticker.C {
-		client.Connect()
-		for {
-			byteMsg, err := client.readMessage()
-			if err != nil {
-				client.Close()
-				break
-			}
-			log.Println(string(byteMsg))
-		}
-	}
-}
-
 func (client *Client) Close() {
 	client.connLock.Lock()
 	defer client.connLock.Unlock()
@@ -100,33 +83,4 @@ func (client *Client) WriteJSON(json interface{}) error {
 	client.Connect()
 
 	return client.conn.WriteJSON(json)
-}
-
-type Messageasdfas struct {
-	Event      string   `json:"event"`
-	Feed       string   `json:"feed"`
-	ProductIds []string `json:"product_ids"`
-}
-
-func main() {
-	wc := NewWebSocketClient("wss://demo-futures.kraken.com/ws/v1?chart", time.Second)
-	wc.Connect()
-	go func() {
-		time.Sleep(time.Second * 10)
-		err := wc.WriteJSON(Messageasdfas{
-			Event: "subscribe",
-			Feed:  "ticker",
-			ProductIds: []string{"PI_ETHUSD"},
-		})
-		log.Println("Write")
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-	}()
-	go wc.debugListen()
-
-	for true {
-		runtime.Gosched()
-	}
 }

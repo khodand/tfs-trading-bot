@@ -2,6 +2,7 @@ package queries
 
 import (
 	"context"
+
 	"tfs-trading-bot/internal/domain"
 )
 

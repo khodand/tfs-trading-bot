@@ -1,11 +1,12 @@
 package algorithms
 
 import (
-	"github.com/sirupsen/logrus"
 	"testing"
-	"tfs-trading-bot/internal/domain"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
+	"tfs-trading-bot/internal/domain"
 )
 
 type Test struct {

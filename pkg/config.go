@@ -9,7 +9,7 @@ import (
 type Config struct {
 	Dsn             string `json:"dsn"`
 	Telegram        string `json:"telegram"`
-	AlgoSellPeriod  int `json:"algoPeriod"`
+	AlgoSellPeriod  int    `json:"algoPeriod"`
 	KrakenWebsocket string `json:"krakenWebsocket"`
 	KrakenREST      string `json:"krakenREST"`
 	KrakenPublicKey string `json:"krakenPublicKey"`

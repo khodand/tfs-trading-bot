@@ -2,10 +2,11 @@ package repository
 
 import (
 	"context"
-	"tfs-trading-bot/internal/domain"
-	"tfs-trading-bot/internal/repository/queries"
 
 	"github.com/jackc/pgx/v4/pgxpool"
+
+	"tfs-trading-bot/internal/domain"
+	"tfs-trading-bot/internal/repository/queries"
 )
 
 type repo struct {

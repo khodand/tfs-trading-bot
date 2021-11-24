@@ -3,12 +3,13 @@ package repository
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"testing"
+
 	"tfs-trading-bot/internal/domain"
 	"tfs-trading-bot/pkg"
-
 	pkgpostgres "tfs-trading-bot/pkg/postgres"
 )
 

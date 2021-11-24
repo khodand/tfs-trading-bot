@@ -25,21 +25,6 @@ func (o Order) String() string {
 		fmt.Sprintf("%f", o.LimitPrice)
 }
 
-// TickerLite https://support.kraken.com/hc/en-us/articles/360022839751-Ticker-Lite
-type TickerLite struct {
-	Feed         string       `json:"feed"`
-	ProductId    TickerSymbol `json:"product_id"`
-	Bid          Price        `json:"bid"`
-	Ask          Price        `json:"ask"`
-	Change       float64      `json:"change"`
-	Premium      float64      `json:"premium"`
-	Volume       float64      `json:"volume"`
-	Tag          string       `json:"tag"`
-	Pair         string       `json:"pair"`
-	Dtm          int          `json:"dtm"`
-	MaturityTime int          `json:"maturityTime"`
-}
-
 // Ticker https://support.kraken.com/hc/en-us/articles/360022635992-Ticker
 type Ticker struct {
 	Feed      string       `json:"feed"`

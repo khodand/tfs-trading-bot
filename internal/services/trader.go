@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+
 	"github.com/sirupsen/logrus"
+
 	"tfs-trading-bot/internal/domain"
 	"tfs-trading-bot/internal/repository"
 )
@@ -27,7 +29,7 @@ type Trader struct {
 	exchange TradingExchange
 	algo     TradingAlgorithm
 	database repository.TradingDatabase
-	log *logrus.Logger
+	log      *logrus.Logger
 }
 
 func (t *Trader) ChangeAlgo(algo TradingAlgorithm) {
@@ -35,12 +37,12 @@ func (t *Trader) ChangeAlgo(algo TradingAlgorithm) {
 	panic("implement me")
 }
 
-func NewTrader(exch TradingExchange, alg TradingAlgorithm, db repository.TradingDatabase, logger *logrus.Logger) *Trader {
+func NewTrader(exc TradingExchange, alg TradingAlgorithm, db repository.TradingDatabase, logger *logrus.Logger) *Trader {
 	return &Trader{
-		exchange: exch,
+		exchange: exc,
 		algo:     alg,
 		database: db,
-		log: logger,
+		log:      logger,
 	}
 }
 

@@ -14,7 +14,6 @@ func (c *Client) PostRequest(req *http.Request) *http.Response {
 	if err != nil {
 		panic(err)
 	}
-	//fmt.Println(string(b))
 
 	resp, err := c.Do(req)
 	if err != nil {
