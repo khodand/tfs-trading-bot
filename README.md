@@ -25,15 +25,15 @@ C помощью консоли
 Начать общение с вашим ботом и написать ему ключевое сообщение `/start`
 
 ## Управляйте ботом при помощи Rest API
-- Чтобы начать торговать какой-то бумагой используйте `http://localhost:5000/trade/{tickerSymbol}`
+- Чтобы начать торговать какой-то бумагой используйте `POST http://localhost:5000/trade/{tickerSymbol}`
 ```http request
-http://localhost:5000/trade/pi_ethusd
+POST http://localhost:5000/trade/pi_ethusd
 ```
-- Для смены алгоритма торговли: `http://localhost:5000/algo/{algorithm}/{period}`
+- Для смены алгоритма торговли: `POST http://localhost:5000/algo/{algorithm}/{period}`
 ```http request
-http://localhost:5000/EMA/20
+POST http://localhost:5000/EMA/20
 ```
 - Для остановки торговли
 ```http request
-http://localhost:5000/stop
+POST http://localhost:5000/stop
 ```
