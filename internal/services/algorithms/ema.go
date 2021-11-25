@@ -32,12 +32,11 @@ func getTickerMa(tickersAverage map[domain.TickerSymbol]tickerMA, id domain.Tick
 	var average tickerMA
 	if tmp, ok := tickersAverage[id]; ok {
 		average = tmp
-		average.period++
 	} else {
 		average = tickerMA{
 			ma:     price,
 			last:   price,
-			period: 1,
+			period: 0,
 		}
 	}
 	return average
@@ -57,6 +56,7 @@ func (m EMAAlgo) ProcessTickers(tickers <-chan domain.Ticker) <-chan domain.Orde
 				// We want to skip tickers with the same market price to avoid a "sideways" chart
 				continue
 			}
+			average.period++
 
 			m.logger.Debugf("EMA: %s last:%f ma:%f price:%f", ticker.ProductId, average.last, average.ma, price)
 			order := generateOrder(m.sellPeriod, average.period, average.last, average.ma, ticker)
@@ -81,6 +81,7 @@ func (m EMAAlgo) ProcessTicker(ticker domain.Ticker) (domain.Order, bool) {
 		// We want to skip tickers with the same market price to avoid a "sideways" chart
 		return domain.Order{}, true
 	}
+	average.period++
 
 	m.logger.Debugf("EMA: %s last:%f ma:%f price:%f", ticker.ProductId, average.last, average.ma, price)
 	order := generateOrder(m.sellPeriod, average.period, average.last, average.ma, ticker)

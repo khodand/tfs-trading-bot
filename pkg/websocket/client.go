@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 )
 
 type Client struct {
@@ -33,6 +34,7 @@ func (client *Client) Connect() {
 		var err = errors.New("")
 		var ws *websocket.Conn
 		for err != nil {
+			logrus.Infof("Trying to connect to %s", client.url)
 			ws, _, err = websocket.DefaultDialer.Dial(client.url, nil)
 		}
 		client.conn = ws

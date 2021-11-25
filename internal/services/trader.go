@@ -86,6 +86,7 @@ func (t *Trader) tickersToAlgo(tickers <-chan domain.Ticker) <-chan domain.Order
 					return
 				}
 				if order, skip := t.algo.ProcessTicker(ticker); !skip {
+					t.log.Trace("ORDER", order)
 					out <- order
 				}
 			}
